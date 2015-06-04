@@ -100,7 +100,7 @@ def GrabTree(filename):
 
 
 
-tree = RetrieveTree(2)
-CreatePlot(tree)
-print 'max leaf is: ', GetNumLeafs(tree)
-print 'max depth is: ', GetTreeDepth(tree)
+#tree = RetrieveTree(2)
+#CreatePlot(tree)
+#print 'max leaf is: ', GetNumLeafs(tree)
+#print 'max depth is: ', GetTreeDepth(tree)

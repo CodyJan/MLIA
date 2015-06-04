@@ -125,8 +125,13 @@ def classify(intree, feats, tests):
                 classlab = second[key]
     return classlab
 
+fp = open('lenses.txt')
+lenses = [inst.strip().split('\t') for inst in fp.readlines()]
+lenseslabs = ['ages', 'prescript', 'astigmatic', 'tearRate']
+lensesTree = CreateTree(lenses, lenseslabs)
+treePlotter.CreatePlot(lensesTree)
 
 data, labs = CreateData()
-mytree = treePlotter.GrabTree('store.txt')
+mytree = treePlotter.RetrieveTree(0)
 print classify(mytree, labs, [1,0])
 print classify(mytree, labs, [1,1])
