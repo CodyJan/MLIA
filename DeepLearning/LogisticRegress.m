@@ -1,5 +1,6 @@
 function LogisticRegress()
 
+
 % 先将0-1转换成连续函数
 % p = g(XW) = 1 / (1+e^{-XW})
 % p是每个事件的概率
