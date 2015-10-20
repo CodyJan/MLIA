@@ -15,8 +15,8 @@ if 0
 	% W = (X'*X)^-1 * X' * Y          -->
 	% W = (X'*X + \lambda diag(1,...,0))^-1 * X' * Y
 	
-	x = load('./ex5Data/ex5Linx.dat');
-	y = load('./ex5Data/ex5Liny.dat');
+	x = load('./data/ex5Linx.dat');
+	y = load('./data/ex5Liny.dat');
 	
 	% ÉýÎ¬
 	x = [x x.^2 x.^3 x.^4 x.^5];
@@ -55,8 +55,8 @@ if 1
 	% g2 = [\sum x^2 * e^{-XW} / (1+e^{-XW})^2  +  \lambda] / m
 	% g2 = [X' * diag(p*(1-p)) * X   +  \lambda] / m
 	
-	x = load('./ex5Data/ex5Logx.dat');
-	y = load('./ex5Data/ex5Logy.dat');
+	x = load('./data/ex5Logx.dat');
+	y = load('./data/ex5Logy.dat');
 	
 	figure(1);clf;
 	plot(x(find(y),1),x(find(y),2),'o','MarkerFaceColor','b')
@@ -65,7 +65,7 @@ if 1
 	legend('y=1','y=0')
 	
 	% ÉýÎ¬
-	addpath('./ex5Data');
+	addpath('./data');
 	x = map_feature(x(:,1), x(:,2));
 	[m n] = size(x);
 	

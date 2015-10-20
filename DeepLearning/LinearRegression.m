@@ -11,8 +11,8 @@ clc;
 
 %一维线性系统
 if 0
-	x = load('./ex2Data/ex2x.dat');
-	y = load('./ex2Data/ex2y.dat');
+	x = load('./data/ex2x.dat');
+	y = load('./data/ex2y.dat');
 	x(:,2) = 1;
 	
 	%% 1. 正则方程
@@ -48,8 +48,8 @@ end
 
 % 多维线性
 if 1
-	x = load('./ex3Data/ex3x.dat');
-	y = load('./ex3Data/ex3y.dat');
+	x = load('./data/ex3x.dat');
+	y = load('./data/ex3y.dat');
 	x(:,end+1) = 1;	
 	
 	%% 1. 正则方程

@@ -19,7 +19,7 @@ lambda = 1e-4;			% 权重惩罚项权重
 
 %% 预处理数据
 % * 读取10张图片, 每张图片随机位置上获取一些patch图像
-IMGS = load('./sparseae_exercise/IMAGES.mat');
+IMGS = load('./data/IMAGES.mat');
 IMGS = IMGS.IMAGES;
 [hei wid cnt] = size(IMGS);
 pats = zeros(patsize^2, patnum);

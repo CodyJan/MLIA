@@ -21,7 +21,7 @@ ntokens = 2500;
 % 第一列 文档序号
 % 第二列 单词序号
 % 第三列 文档内单词出现次数
-M = load('./ex6DataPrepared/train-features.txt');
+M = load('./data/train-features.txt');
 
 % A = sparse(i,j,s,m,n)
 % 将向量i,j,s合并成一个mxn矩阵，并A(i(k),j(k)) = s(k)
@@ -30,7 +30,7 @@ spmat = sparse(M(:,1), M(:,2), M(:,3), ndocs, ntokens);
 flmat = full(spmat);
 
 % 类别数据，是否是垃圾邮件
-labs = load('./ex6DataPrepared/train-labels.txt');
+labs = load('./data/train-labels.txt');
 yes_ind = find(labs);
 no_ind = find(labs==0);
 
@@ -56,7 +56,7 @@ prob_words_no = (sum(flmat(no_ind,:))+1) ./ (ntokens + words_no);
 
 
 %% 2. 测试
-N = load('./ex6DataPrepared/test-features.txt');
+N = load('./data/test-features.txt');
 spmat = sparse(N(:,1), N(:,2), N(:,3));
 flmat = full(spmat);
 
@@ -66,6 +66,6 @@ a = flmat*(log(prob_words_yes))' + log(prob_yes);
 b = flmat*(log(prob_words_no))' + log(prob_no);
 out = a > b;
 
-labs = load('./ex6DataPrepared/test-labels.txt');
+labs = load('./data/test-labels.txt');
 
 end

@@ -56,7 +56,7 @@ if 0
 	subplot(2,2,1);
 	title('raw data');
 	hold on;
-	x = load('./pca_2d/pcaData.txt');
+	x = load('./data/pcaData.txt');
 	[n m] = size(x);
 	plot(x(1,:), x(2,:), 'o');
 	[U S V] = svd(x*x'/m);
@@ -109,7 +109,7 @@ if 1
 	epsilon = 0.1;
 	randsamp = randi(patnum, 90, 1);
 	
-	load('./pca_exercise/IMAGES_RAW');
+	load('./data/IMAGES_RAW');
 	IMGS = IMAGESr;
 	[hei wid cnt] = size(IMGS);	
 	pats = zeros(patsize^2, patnum);

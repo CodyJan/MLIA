@@ -16,8 +16,8 @@ function LogisticRegress()
 % g2 = \sum x^2 * e^{-XW} / (1+e^{-XW})^2 / m
 % g2 = X' * diag(p*(1-p)) * X / m
 
-x = load('./ex4Data/ex4x.dat');
-y = load('./ex4Data/ex4y.dat');
+x = load('./data/ex4x.dat');
+y = load('./data/ex4y.dat');
 x(:,end+1) = 1;
 [m, n] = size(x);
 
