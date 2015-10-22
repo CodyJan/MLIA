@@ -51,25 +51,22 @@
 %% 程序代码
 %
 
-function SoftMax()
-
-clear;
-clf;
-clc;
-
+function SoftMax(imgs, labs, imgs_test, labs_test)
 
 K = 10;				% 总类别数
 lambda = 1e-4;		% 衰减权重
 
-% MNIST Dataset: images and labels
-load('./data/softmax_data.mat');
-imgs = softmax_data.imgs;
-labs = softmax_data.labs;
+if nargin < 4
+	% MNIST Dataset: images and labels
+	load('./data/softmax_data.mat');
+	imgs = softmax_data.imgs;
+	labs = softmax_data.labs;	
+	imgs_test = softmax_data.imgs_test;
+	labs_test = softmax_data.labs_test;	
+	clear softmax_data;
+end
 labs(labs==0) = 10;
-imgs_test = softmax_data.imgs_test;
-labs_test = softmax_data.labs_test;
 labs_test(labs_test==0) = 10;
-clear softmax_data;
 
 [n m] = size(imgs);
 wid = round(sqrt(n));
@@ -80,115 +77,40 @@ X = imgs;
 W = 0.005 * randn(K*n, 1);
 % 形成类别的二维掩码，行是类别，列是样本
 LABS = full(sparse(labs, 1:m, 1));
-% 初值计算代价和梯度
-[cost grad] = cost_grad_func(W, X, LABS, lambda, true);
 
-if 0
+
 %%
-% * 使用minFunc函数
-	addpath starter/
+% * L-BFGS算法求解SoftMax回归最优化问题
+%
+tic;
+if 0
 	addpath starter/minFunc
 	options.Method = 'lbfgs';
-	options.maxIter = 50;
-	options.display = 'on';
-	tic;
-	[W, cost, ~, ~, lams] = minFunc( @(p) cost_grad_func(p, X, LABS, lambda, true), W, options);
-	toc	
+	options.maxIter = 100;
+	options.display = 'on';	
+	[W, cost] = minFunc( @(p) cost_grad_func(p, X, LABS, lambda, true), W, options);	
 else
-%%
-% * L-BFGS+Armijo
-
-	% 1. 初值
-	eps = 1e-8;
-	m = 100;
-	Y = zeros(size(W,1), 0);
-	S = zeros(size(W,1), 0);
-	g = grad;
-	d = -g;
-	err = [cost];
-	sigma = 0.4;
-	c_old = cost;
-	g_old = g;
-	tic;
-	for k = 1:50
-		% 3. 线搜索, Armijo准则
-		for mk = 0:20
-			alf = 0.8^mk;
-			[cost g] = cost_grad_func(W+alf*d, X, LABS, lambda, 1);
-			if cost < c_old + sigma*alf*g'*d
-				break;
-			end
-		end
-		if mk>=20
-			disp('line search failed');
-			alf = 1;
-		end
-		W = W + alf*d;
-		
-		
-		% 2. 判断g_k
-		if g'*g < eps
-			disp('g_k small enough');
-			break;
-		end
-		
-		
-		% 缓存m组y和s
-		y = g - g_old;
-		s = alf*d;
-		if size(Y,2) < m
-			Y(:,end+1) = y;
-			S(:,end+1) = s;
-		else
-			Y = [Y(:,2:end) y];
-			S = [S(:,2:end) s];
-		end
-		
-		% 4. two-loop求d_k+1
-		H0 = (y'*s) / (y'*y);
-		mcnt = size(Y,2);
-		al = zeros(mcnt, 1);
-		ro = zeros(mcnt, 1);
-		for i = 1:mcnt
-			ro(i) = 1 / (Y(:,i)'*S(:,i));
-		end
-		q = -g;
-		for i = mcnt:-1:1
-			al(i) = ro(i)*(S(:,i)'*q);
-			q = q - al(i)*Y(:,i);
-		end
-		r = H0 * q;
-		for i = 1:mcnt
-			be = ro(i) * (Y(:,i)'*r);
-			r = r + S(:,i)*(al(i) - be);
-		end
-		
-		% 更新d
-		d = r;
-		g_old = g;
-		c_old = cost;
-		
-		disp(sprintf('J:%f\t\tit:%d', cost, k));
-		err(end+1) = cost;
-	end
-	toc	
+	[W, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, X, LABS, lambda, p2), W, 100, 20, 0.55, 100);
 end
+toc
 
 
 %%
-% * 测试
+% * 测试、评价
+%
 W = reshape(W, K, []);
 [~, labs_pred] = max(W*imgs_test);
-disp('correct rate:');
+disp('test correct rate:');
 sum(labs_pred' == labs_test) / length(labs_test)
 
 end
 
 
+%%
+% * 代价-梯度函数
+%
+function [cost grad] = cost_grad_func(W, X, Y, lambda, calcgrad)
 
-function [cost grad] = cost_grad_func(W, X, Y, lambda, wat)
-
-% 代价、梯度
 [n m] = size(X);
 W = reshape(W, size(Y,1), []);
 Z = W*X;
@@ -197,7 +119,7 @@ Z = exp(Z);
 P = bsxfun(@rdivide, Z, sum(Z));
 cost = -Y(:)'*log(P(:))/m + 0.5*lambda * W(:)'*W(:);
 
-if nargin > 4
+if calcgrad
 	grad = -(Y - P)*X'/m + lambda * W;
 	grad = grad(:);
 end
@@ -206,3 +128,85 @@ end
 
 
 
+%%
+% * L-BFGS+Armijo实现的最优化算法
+%
+function [Wb cost] = mylbfgs(func, Wb, maxiter, maxmk, basemk, maxm)
+% 1. 初值
+[cost grad] = func(Wb, true);
+eps = 1e-8;
+Y = zeros(size(Wb,1), 0);
+S = zeros(size(Wb,1), 0);
+g = grad;
+d = -g;
+err = [cost];
+sigma = 0.4;
+c_old = cost;
+g_old = g;
+for k = 1:maxiter
+	% 3. 线搜索, Armijo准则
+	for mk = 0:maxmk
+		alf = basemk^mk;
+		[cost gg] = func(Wb+alf*d, true);
+		if cost < c_old + sigma*alf*g'*d
+			break;
+		end
+	end
+	if mk>=maxmk
+		disp('line search failed');
+		alf = 1;
+	end
+	Wb = Wb + alf*d;
+	
+	
+	% 2. 判断g_k
+	g = gg;
+	if g'*g < eps
+		disp('g_k small enough');
+		break;
+	end
+	
+	
+	% 缓存m组y和s
+	y = g - g_old;
+	s = alf*d;
+	if size(Y,2) < maxm
+		Y(:,end+1) = y;
+		S(:,end+1) = s;
+	else
+		Y = [Y(:,2:end) y];
+		S = [S(:,2:end) s];
+	end
+	
+	% 4. two-loop求d_k+1
+	H0 = (y'*s) / (y'*y);
+	mcnt = size(Y,2);
+	al = zeros(mcnt, 1);
+	ro = zeros(mcnt, 1);
+	for i = 1:mcnt
+		ro(i) = 1 / (Y(:,i)'*S(:,i));
+	end
+	q = -g;
+	for i = mcnt:-1:1
+		al(i) = ro(i)*(S(:,i)'*q);
+		q = q - al(i)*Y(:,i);
+	end
+	r = H0 * q;
+	for i = 1:mcnt
+		be = ro(i) * (Y(:,i)'*r);
+		r = r + S(:,i)*(al(i) - be);
+	end
+	
+	% 更新d
+	d = r;
+	g_old = g;
+	c_old = cost;
+	
+	disp(sprintf('it:%d\t\tJ:%f\t\tstep:%f', k, cost, alf));
+	err(end+1) = cost;
+end
+clf;
+plot(err);
+title('残差-迭代');
+disp('done');
+end

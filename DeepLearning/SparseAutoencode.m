@@ -74,6 +74,7 @@ nodes = [patsize^2 hidsize^2 patsize^2];	% 每层节点数
 
 %%
 % * 读取10张图片, 每张图片随机位置上获取一些patch图像
+%
 IMGS = load('./data/IMAGES.mat');
 IMGS = IMGS.IMAGES;
 [hei wid cnt] = size(IMGS);
@@ -88,6 +89,7 @@ end
 
 %%
 % * 规范化：将原数据归0归1，使其符合正态分布 $\sim\mathcal{N}(0,3\sigma)$
+%
 pats = bsxfun(@minus, pats, mean(pats));
 pstd = 3 * std(pats(:));
 pats = max(min(pats, pstd), -pstd) / pstd;
@@ -112,17 +114,20 @@ end
 
 %%
 % * 产生随机的 $W,b$ ， $W$ 是在 $r=\pm\sqrt{6/(n_{in}+n_{out}+1)}$ 范围之间的伪随机数. 否则容易收敛到局部
+%
 r  = sqrt(6) / sqrt(hidsize^2 + patsize^2 + 1);
 Wb = [rand(2*nodes(1)*nodes(2),1)*2*r-r; zeros(nodes(1)+nodes(2), 1)];
 
 
 %%
 % * 计算初值的代价值和梯度值
+%
 [cost grad] = cost_grad_func(Wb, pats, rho, lambda, beta, nodes(1), nodes(2), true);
 
 
 %%
 % * 梯度检查，检查上述理论梯度值是否符合数值梯度值
+%
 if 0
 	eps = 1e-4;
 	nlen = length(grad);
@@ -166,106 +171,27 @@ if 0
 	disp( norm(grad-grad_check) / norm(grad+grad_check) );
 end
 
+
 %%
-% * 使用minFunc函数
-if 1
+% * L-BFGS算法求解稀疏自编码最优化问题
+%
+tic;
+if 0
 	addpath starter/
 	addpath starter/minFunc
 	options.Method = 'lbfgs';
 	options.maxIter = 100;
-	options.display = 'on';
-	tic;
+	options.display = 'on';	
 	[Wb, cost, ~, ~, lams] = minFunc( @(p) sparseAutoencoderCost(p, patsize^2, hidsize^2, lambda, rho, beta, pats), Wb, options);
-	toc
+else
+	[Wb, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, pats, rho, lambda, beta, nodes(1), nodes(2), p2), Wb, 50, 20, 0.55, 50);
 end
-
-
-%%
-% * 自实现的L-BFGS算法
-if 1
-	% 1. 初值
-	eps = 1e-8;	
-	m = 100;
-	Y = zeros(size(Wb,1), 0);
-	S = zeros(size(Wb,1), 0);	
-	g = grad;
-	d = -g;	
-	err = [cost];	
-	sigma = 0.4;
-	c_old = cost;
-	g_old = g;
-	tic;
-	for k = 1:100		
-		% 3. 线搜索, Armijo准则
-		for mk = 0:20
-			alf = 0.8^mk;
-			if cost_grad_func(Wb+alf*d, pats, rho, lambda, beta, nodes(1), nodes(2)) < c_old + sigma*alf*g'*d;
-				break;
-			end			
-		end
-		if mk>=20
-			disp('line search failed');
-			alf = 1;
-		end
-		Wb = Wb + alf*d;
-				
-		
-		% 2. 判断g_k
-		[cost g] = cost_grad_func(Wb, pats, rho, lambda, beta, nodes(1), nodes(2), true);
-		if g'*g < eps
-			disp('g_k small enough');
-			break;
-		end
-		
-		
-		% 缓存m组y和s
-		y = g - g_old;
-		s = alf*d;
-		if size(Y,2) < m
-			Y(:,end+1) = y;
-			S(:,end+1) = s;
-		else
-			Y = [Y(:,2:end) y];
-			S = [S(:,2:end) s];
-		end		
-		
-		% 4. two-loop求d_k+1	
-		H0 = (y'*s) / (y'*y);		
-		mcnt = size(Y,2);
-		al = zeros(mcnt, 1);
-		ro = zeros(mcnt, 1);
-		for i = 1:mcnt
-			ro(i) = 1 / (Y(:,i)'*S(:,i));
-		end
-		q = -g;
-		for i = mcnt:-1:1
-			al(i) = ro(i)*(S(:,i)'*q);
-			q = q - al(i)*Y(:,i);
-		end
-		r = H0 * q;
-		for i = 1:mcnt
-			be = ro(i) * (Y(:,i)'*r);
-			r = r + S(:,i)*(al(i) - be);
-		end		
-		
-		% 更新d
-		d = r;			
-		g_old = g;
-		c_old = cost;
-		
-		disp(sprintf('J:%f\t\tit:%d', cost, k));
-		err(end+1) = cost;
-	end
-	toc
-	clf;
-	plot(err);
-	title('残差-迭代');
-	disp('done');
-end
+toc
 
 
 %%
 % * 显示W1信息
+%
 im = zeros(hidsize*(patsize+1)+1, hidsize*(patsize+1)+1);
 W1 = reshape(Wb(1:nodes(1)*nodes(2)), nodes(2), []);
 W1 = W1';
@@ -278,6 +204,10 @@ clf; imshow(im);
 
 end
 
+
+%%
+% * 激活函数
+%
 function y = sigmoid(x)
 	y = 1 ./ (1+exp(-x));
 end
@@ -286,6 +216,10 @@ function y = sigmoidInv(x)
 	y = ex ./ (1+ex).^2;
 end
 
+
+%%
+% * 代价-梯度函数
+%
 function [cost grad] = cost_grad_func(x, data, rho, lambda, beta, siz1, siz2, calcgrad)
 [n m] = size(data);
 siz = siz1*siz2;
@@ -309,7 +243,7 @@ Jsp = sum(rho*log(rho./mrho) + (1-rho)*log((1-rho)./(1-mrho)));
 % 总代价
 cost = Jc + lambda*Jw + beta*Jsp;
 
-if exist('calcgrad', 'var')
+if calcgrad
 	d3 = -(data-a3).*sigmoidInv(z3);
 	betrho = beta*(-rho./mrho + (1-rho)./(1-mrho));
 	d2 = (W2' * d3 + repmat(betrho,1,m) ) .* sigmoidInv(z2);
@@ -319,4 +253,89 @@ if exist('calcgrad', 'var')
 	b2grad = ( sum(d3, 2)) / m;
 	grad = [W1grad(:); W2grad(:); b1grad(:); b2grad(:)];
 end
+end
+
+
+
+%%
+% * L-BFGS+Armijo实现的最优化算法
+%
+function [Wb cost] = mylbfgs(func, Wb, maxiter, maxmk, basemk, maxm)
+% 1. 初值
+[cost grad] = func(Wb, true);
+eps = 1e-8;
+Y = zeros(size(Wb,1), 0);
+S = zeros(size(Wb,1), 0);
+g = grad;
+d = -g;
+err = [cost];
+sigma = 0.4;
+c_old = cost;
+g_old = g;
+for k = 1:maxiter
+	% 3. 线搜索, Armijo准则
+	for mk = 0:maxmk
+		alf = basemk^mk;
+		[cost gg] = func(Wb+alf*d, true);
+		if cost < c_old + sigma*alf*g'*d
+			break;
+		end
+	end
+	if mk>=maxmk
+		disp('line search failed');
+		alf = 1;
+	end
+	Wb = Wb + alf*d;
+	
+	
+	% 2. 判断g_k
+	g = gg;
+	if g'*g < eps
+		disp('g_k small enough');
+		break;
+	end
+	
+	
+	% 缓存m组y和s
+	y = g - g_old;
+	s = alf*d;
+	if size(Y,2) < maxm
+		Y(:,end+1) = y;
+		S(:,end+1) = s;
+	else
+		Y = [Y(:,2:end) y];
+		S = [S(:,2:end) s];
+	end
+	
+	% 4. two-loop求d_k+1
+	H0 = (y'*s) / (y'*y);
+	mcnt = size(Y,2);
+	al = zeros(mcnt, 1);
+	ro = zeros(mcnt, 1);
+	for i = 1:mcnt
+		ro(i) = 1 / (Y(:,i)'*S(:,i));
+	end
+	q = -g;
+	for i = mcnt:-1:1
+		al(i) = ro(i)*(S(:,i)'*q);
+		q = q - al(i)*Y(:,i);
+	end
+	r = H0 * q;
+	for i = 1:mcnt
+		be = ro(i) * (Y(:,i)'*r);
+		r = r + S(:,i)*(al(i) - be);
+	end
+	
+	% 更新d
+	d = r;
+	g_old = g;
+	c_old = cost;
+	
+	disp(sprintf('it:%d\t\tJ:%f\t\tstep:%f', k, cost, alf));
+	err(end+1) = cost;
+end
+clf;
+plot(err);
+title('残差-迭代');
+disp('done');
 end
