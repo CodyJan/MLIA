@@ -51,12 +51,13 @@
 %% 程序代码
 %
 
-function SoftMax(imgs, labs, imgs_test, labs_test)
+function SoftMax(imgs, labs, imgs_test, labs_test, maxiter)
 
 K = 10;				% 总类别数
 lambda = 1e-4;		% 衰减权重
 
-if nargin < 4
+if nargin < 5
+	maxiter = 100;
 	% MNIST Dataset: images and labels
 	load('./data/softmax_data.mat');
 	imgs = softmax_data.imgs;
@@ -86,11 +87,11 @@ tic;
 if 0
 	addpath starter/minFunc
 	options.Method = 'lbfgs';
-	options.maxIter = 100;
+	options.maxIter = maxiter;
 	options.display = 'on';	
 	[W, cost] = minFunc( @(p) cost_grad_func(p, X, LABS, lambda, true), W, options);	
 else
-	[W, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, X, LABS, lambda, p2), W, 100, 20, 0.55, 100);
+	[W, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, X, LABS, lambda, p2), W, maxiter, 20, 0.55, 100);
 end
 toc
 
@@ -108,6 +109,8 @@ end
 
 %%
 % * 代价-梯度函数
+%
+% $$J = J_0 + J_W$$
 %
 function [cost grad] = cost_grad_func(W, X, Y, lambda, calcgrad)
 

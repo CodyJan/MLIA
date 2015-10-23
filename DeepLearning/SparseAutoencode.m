@@ -59,17 +59,14 @@
 
 function SparseAutoencode()
 
-clear all;
-clc;
-clf;
 
-hidsize = 5;								% 隐藏层节点数目5*5
-patsize = 8;								% 输入层节点数目8*8
 patnum = 10000;								% 样本数目
 rho = 0.01;									% 稀疏值,通常较小
 beta = 3;									% 稀疏值惩罚项权重
 lambda = 1e-4;								% 权重惩罚项权重
-nodes = [patsize^2 hidsize^2 patsize^2];	% 每层节点数
+nodes = [8^2 5^2 8^2];						% 每层节点数
+maxiter = 100;								% 最大迭代次数
+patsize = sqrt(nodes(1));
 
 
 %%
@@ -78,11 +75,11 @@ nodes = [patsize^2 hidsize^2 patsize^2];	% 每层节点数
 IMGS = load('./data/IMAGES.mat');
 IMGS = IMGS.IMAGES;
 [hei wid cnt] = size(IMGS);
-pats = zeros(patsize^2, patnum);
-for i = 1:cnt	
+imgs = zeros(patsize^2, patnum);
+for i = 1:cnt
 	for j = 1:patnum/cnt
 		pos = randi([1, min(wid,hei)-patsize+1], 2, 1);
-		pats(:,(i-1)*patnum/cnt + j) = reshape(IMGS(pos(2):pos(2)+patsize-1, pos(1):pos(1)+patsize-1, i), [], 1);
+		imgs(:,(i-1)*patnum/cnt + j) = reshape(IMGS(pos(2):pos(2)+patsize-1, pos(1):pos(1)+patsize-1, i), [], 1);
 	end
 end
 
@@ -90,16 +87,16 @@ end
 %%
 % * 规范化：将原数据归0归1，使其符合正态分布 $\sim\mathcal{N}(0,3\sigma)$
 %
-pats = bsxfun(@minus, pats, mean(pats));
-pstd = 3 * std(pats(:));
-pats = max(min(pats, pstd), -pstd) / pstd;
+imgs = bsxfun(@minus, imgs, mean(imgs));
+pstd = 3 * std(imgs(:));
+imgs = max(min(imgs, pstd), -pstd) / pstd;
 % [-1,1] -> [0.1, 0.9]
-pats = (pats + 1) * 0.4 + 0.1;
+imgs = (imgs + 1) * 0.4 + 0.1;
 
 
 % 显示随机patch的部分原始信息
-if 1
-	A = pats(:, randi(patnum, 200, 1));
+if 0
+	A = imgs(:, randi(patnum, 200, 1));
 	cols = ceil(sqrt(size(A,2)));
 	rows = ceil(size(A,2) / cols);
 	im = zeros(rows*(patsize+1)+1, cols*(patsize+1)+1);
@@ -115,63 +112,8 @@ end
 %%
 % * 产生随机的 $W,b$ ， $W$ 是在 $r=\pm\sqrt{6/(n_{in}+n_{out}+1)}$ 范围之间的伪随机数. 否则容易收敛到局部
 %
-r  = sqrt(6) / sqrt(hidsize^2 + patsize^2 + 1);
+r  = sqrt(6) / sqrt(nodes(1) + nodes(2) + 1);
 Wb = [rand(2*nodes(1)*nodes(2),1)*2*r-r; zeros(nodes(1)+nodes(2), 1)];
-
-
-%%
-% * 计算初值的代价值和梯度值
-%
-[cost grad] = cost_grad_func(Wb, pats, rho, lambda, beta, nodes(1), nodes(2), true);
-
-
-%%
-% * 梯度检查，检查上述理论梯度值是否符合数值梯度值
-%
-if 0
-	eps = 1e-4;
-	nlen = length(grad);
-	len1 = patsize^2 * hidsize^2;
-	len2 = patsize^2 * hidsize^2;
-	len3 = hidsize^2;
-	len4 = patsize^2;
-	grad_check = zeros(nlen, 1);
-	W1 = reshape(Wb(1:len1), len3, []);
-	W2 = reshape(Wb(len1+1:len1+len2), len4, []);
-	b1 = reshape(Wb(len1+len2+1:len1+len2+len3), len3, []);
-	b2 = reshape(Wb(len1+len2+len3+1:end), len4, []);
-	for j = 1:nlen
-		dels = zeros(nlen, 1);
-		dels(j) = eps;
-		delW1 = reshape(dels(1:len1), len3, []);
-		delW2 = reshape(dels(len1+1:len1+len2), len4, []);
-		delb1 = reshape(dels(len1+len2+1:len1+len2+len3), len3, []);
-		delb2 = reshape(dels(len1+len2+len3+1:end), len4, []);
-		
-		a2 = sigmoid( (W1+delW1)*pats + repmat((b1+delb1), 1, patnum) );
-		a3 = sigmoid( (W2+delW2)*a2 + repmat((b2+delb2), 1, patnum) );
-		Jc = sum(sum((a3-pats).^2)) * 0.5 / patnum;
-		Jw = 0.5 * (sum(sum((W1+delW1).^2)) + sum(sum((W2+delW2).^2)));
-		mrho = sum(a2,2) / patnum;
-		Jsp = sum(rho*log(rho./mrho) + (1-rho)*log((1-rho)./(1-mrho)));
-		J_0 = Jc + lambda*Jw + beta*Jsp;
-		
-		a2 = sigmoid( (W1-delW1)*pats + repmat((b1-delb1), 1, patnum) );
-		a3 = sigmoid( (W2-delW2)*a2 + repmat((b2-delb2), 1, patnum) );
-		Jc = sum(sum((a3-pats).^2)) * 0.5 / patnum;
-		Jw = 0.5 * (sum(sum((W1-delW1).^2)) + sum(sum((W2-delW2).^2)));
-		mrho = sum(a2,2) / patnum;
-		Jsp = sum(rho*log(rho./mrho) + (1-rho)*log((1-rho)./(1-mrho)));
-		J_1 = Jc + lambda*Jw + beta*Jsp;
-		
-		grad_check(j) = (J_0 - J_1) / (2*eps);
-		disp(sprintf('it:%d/%d',j,nlen));
-	end
-
-	disp( norm(grad-grad_check) / norm(grad+grad_check) );
-end
-
-
 %%
 % * L-BFGS算法求解稀疏自编码最优化问题
 %
@@ -180,11 +122,11 @@ if 0
 	addpath starter/
 	addpath starter/minFunc
 	options.Method = 'lbfgs';
-	options.maxIter = 100;
+	options.maxIter = maxiter;
 	options.display = 'on';	
-	[Wb, cost, ~, ~, lams] = minFunc( @(p) sparseAutoencoderCost(p, patsize^2, hidsize^2, lambda, rho, beta, pats), Wb, options);
+	[Wb, cost, ~, ~, lams] = minFunc( @(p) sparseAutoencoderCost(p, nodes(1), nodes(2), lambda, rho, beta, imgs), Wb, options);
 else
-	[Wb, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, pats, rho, lambda, beta, nodes(1), nodes(2), p2), Wb, 50, 20, 0.55, 50);
+	[Wb, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, imgs, rho, lambda, beta, nodes(1), nodes(2), p2), Wb, maxiter, 20, 0.55, 100);
 end
 toc
 
@@ -192,15 +134,20 @@ toc
 %%
 % * 显示W1信息
 %
-im = zeros(hidsize*(patsize+1)+1, hidsize*(patsize+1)+1);
+inwid = sqrt(nodes(1));
+inhei = inwid;
+hidwid = ceil(sqrt(nodes(2)));
+hidhei = ceil(nodes(2) / hidwid);
+im = zeros( hidhei * (inhei+1) + 1, hidwid * (inwid+1) + 1);
 W1 = reshape(Wb(1:nodes(1)*nodes(2)), nodes(2), []);
-W1 = W1';
-for i = 1:hidsize^2
-	c = mod((i-1), hidsize)+1;
-	r = floor((i-1) / hidsize)+1;
-	im( (r-1)*(patsize+1)+2:r*(patsize+1), (c-1)*(patsize+1)+2:c*(patsize+1) ) = mat2gray(reshape(W1(:,i), patsize, []));
+for i = 1:nodes(2)
+	c = mod((i-1), hidwid)+1;
+	r = floor((i-1) / hidwid)+1;
+	im( (r-1)*(inhei+1)+2:r*(inhei+1), (c-1)*(inwid+1)+2:c*(inwid+1) ) = reshape(W1(i,:), inhei, []);
 end
-clf; imshow(im);
+im = mat2gray(im);
+im(1:inhei+1:end, :) = 0; im(:, 1:inwid+1:end) = 0;
+imshow(im);
 
 end
 
@@ -219,6 +166,8 @@ end
 
 %%
 % * 代价-梯度函数
+%
+% $$J = J_0 + J_W + J_{sp}$$
 %
 function [cost grad] = cost_grad_func(x, data, rho, lambda, beta, siz1, siz2, calcgrad)
 [n m] = size(data);

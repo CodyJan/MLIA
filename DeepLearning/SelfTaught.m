@@ -15,7 +15,7 @@
 %% 程序代码
 %
 function SelfTaught()
-return
+
 clear;clc;clf;
 
 rho = 0.1;							% 稀疏值
@@ -54,7 +54,7 @@ Wb = [rand(2*nodes(1)*nodes(2),1)*2*r-r; zeros(nodes(1)+nodes(2), 1)];
 % * LBFGS算法，最优化求解无监督特征学习
 %
 tic;
-if 1
+if 0
 	maxiter = 200;
 	addpath starter/minFunc
 	options.Method = 'lbfgs';
@@ -123,22 +123,23 @@ end
 %%
 % * 代价-梯度函数
 %
-function [cost grad] = cost_grad_func(x, data, rho, lambda, beta, siz1, siz2, calcgrad)
-
-[n m] = size(data);
+% $$J = J_0 + J_W + J_{sp}$$
+%
+function [cost grad] = cost_grad_func(Wb, X, rho, lambda, beta, siz1, siz2, calcgrad)
+[n m] = size(X);
 siz = siz1*siz2;
-W1 = reshape(x(1:siz), siz2, []);
-W2 = reshape(x(siz+1:2*siz), siz1, []);
-b1 = x(2*siz+1:2*siz+siz2);
-b2 = x(2*siz+siz2+1:end);
+W1 = reshape(Wb(1:siz), siz2, []);
+W2 = reshape(Wb(siz+1:2*siz), siz1, []);
+b1 = Wb(2*siz+1:2*siz+siz2);
+b2 = Wb(2*siz+siz2+1:end);
 
-z2 = bsxfun(@plus, W1*data, b1);
+z2 = bsxfun(@plus, W1*X, b1);
 a2 = sigmoid(z2);
 z3 = bsxfun(@plus, W2*a2, b2);
 a3 = sigmoid(z3);
 
 % 均方差项
-Jc = sum(sum((a3-data).^2)) * 0.5 / m;
+Jc = sum(sum((a3-X).^2)) * 0.5 / m;
 % 权重衰减项
 Jw = 0.5 * (sum(sum(W1.^2)) + sum(sum(W2.^2)));
 % 稀疏惩罚项
@@ -148,10 +149,10 @@ Jsp = sum(rho*log(rho./mrho) + (1-rho)*log((1-rho)./(1-mrho)));
 cost = Jc + lambda*Jw + beta*Jsp;
 
 if calcgrad
-	d3 = -(data-a3).*sigmoidInv(z3);
+	d3 = -(X-a3).*sigmoidInv(z3);
 	betrho = beta*(-rho./mrho + (1-rho)./(1-mrho));
 	d2 = (W2' * d3 + repmat(betrho,1,m) ) .* sigmoidInv(z2);
-	W1grad = ( d2*data') / m + lambda*W1;
+	W1grad = ( d2*X') / m + lambda*W1;
 	b1grad = ( sum(d2,2)) / m;
 	W2grad = ( d3*a2') / m + lambda*W2;
 	b2grad = ( sum(d3, 2)) / m;
