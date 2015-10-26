@@ -3,7 +3,7 @@
 % 本例演示栈式自编码算法，是一个多层的网络结构，以识别手写数字为目标。
 %
 % 栈式自编码网络是多层稀疏自编码器组成的神经网络，前一层自编码器的输出作为后一层的输入，最后再加上一层SoftMax回归或其他回归输出分类结果。
-% 由此来看，首先是依次逐层得到每层的自编码器参数，最后调用依次SoftMax回归。
+% 由此来看，首先是依次逐层得到每层的自编码器参数，最后调用一次SoftMax回归。
 %
 % 每层的自编码器相对于对输入数据再进行一次“压缩”，而这些“压缩”的数据通过复原与输入数据是尽量相似的。
 % 也就是栈式自编码器每层都需要执行一遍"SparseAutoencode"，并只保留 $W^{(1)}$ 信息。
@@ -15,7 +15,7 @@
 %% 程序代码
 %
 function StackedAutoencoder()
-
+return
 nodes = [28*28 200 200 28*28];		% 每层节点数
 rho = 0.1;							% 稀疏性
 lambda = 3e-3;						% weight decay parameter       
@@ -81,6 +81,7 @@ z2 = bsxfun(@plus, W1*train_feat, b1);
 train_feat = sigmoid(z2);
 z2 = bsxfun(@plus, W1*test_feat, b1);
 test_feat = sigmoid(z2);
+
 
 %%
 % * 输出层调用SoftMax回归，并测试
