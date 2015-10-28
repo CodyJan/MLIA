@@ -19,20 +19,23 @@
 
 %% 程序代码
 %
-function LinearDecoder
-nch = 3;
-nodes = [8*8*3, 400, 8*8*3];
-rho = 0.035;
-lambda = 3e-3;
-beta = 5;
-epsilon = 0.1;
-maxiter = 200;
+function [Wb meanpat ZCAWhite] = LinearDecoder( patches, rho, lambda, beta, epsilon, nodes, maxiter, SKIP)
 
 
 %% 
 % * 读取、预处理数据
 %
-load ./data/stl_patches.mat
+if nargin < 5
+	load ./data/stlSampledPatches.mat
+	nodes = [8*8*3, 400, 8*8*3];
+	rho = 0.035;
+	lambda = 3e-3;
+	beta = 5;	
+	maxiter = 300;
+	epsilon = 0.1;
+	SKIP = 1;
+end
+
 
 % 原始图像
 figure(1); clf; 
@@ -41,7 +44,8 @@ showColorInfo(patches(:, 1:100));
 
 % ZCA 白化
 [n m] = size(patches);
-patches = bsxfun(@minus, patches, mean(patches, 1));
+meanpat = mean(patches, 2);
+patches = bsxfun(@minus, patches, meanpat);
 sigma = patches * patches' / m;
 [u, s, v] = svd(sigma);
 ZCAWhite = u * diag(1 ./ sqrt(diag(s) + epsilon)) * u';
@@ -58,7 +62,7 @@ Wb = [rand(2*nodes(1)*nodes(2),1)*2*r-r; zeros(nodes(1)+nodes(2), 1)];
 
 %%
 % * 迭代求解参数
-if 1
+if SKIP<1
 	figure(2);clf;
 	tic;
 	[Wb, cost] = mylbfgs( @(p1, p2) cost_grad_func(p1, patches, rho, lambda, beta, nodes(1), nodes(2), p2), Wb, maxiter, 20, 0.55, 100);

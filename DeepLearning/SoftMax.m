@@ -53,10 +53,7 @@
 
 function SoftMax(imgs, labs, imgs_test, labs_test, maxiter)
 
-K = 10;				% 总类别数
-lambda = 1e-4;		% 衰减权重
-
-if nargin < 5
+if nargin < 1
 	maxiter = 100;
 	% MNIST Dataset: images and labels
 	load('./data/softmax_data.mat');
@@ -64,8 +61,11 @@ if nargin < 5
 	labs = softmax_data.labs;	
 	imgs_test = softmax_data.imgs_test;
 	labs_test = softmax_data.labs_test;	
-	clear softmax_data;
+	clear softmax_data;	
 end
+
+K = length(unique(labs));			% 总类别数
+lambda = 1e-4;						% 衰减权重
 labs(labs==0) = 10;
 labs_test(labs_test==0) = 10;
 
