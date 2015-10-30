@@ -24,7 +24,7 @@ SKIP = 4;
 
 
 %%
-% * 读取之前的线性解码器的训练结果
+% * 读取之前的线性解码器的训练结果，主要是权重、偏移、白化参数
 [Wb meanpat ZCAWh] = LinearDecoder();
 W1 = reshape(Wb(1:nodes(1)*nodes(2)), nodes(2), []);
 b1 = Wb(2*nodes(1)*nodes(2)+1:2*nodes(1)*nodes(2)+nodes(2));
@@ -35,7 +35,7 @@ showColorInfo(WWh');
 
 
 %%
-% * 数据读取
+% * 读取训练数据
 load('./data/stltrainSubset.mat');
 [imgwid, ~, nch, m] = size(trainImages);
 
@@ -86,7 +86,7 @@ end
 
 
 %%
-% * 卷积和池化，提取训练数据的特征
+% * 对训练数据，进行卷积和池化
 if SKIP<2
 	substep = 50;
 	steps = m / substep;
@@ -108,7 +108,7 @@ end
 
 
 %%
-% * 卷积和池化，提取测试数据的特征
+% * 对测试数据，进行卷积和池化
 load('./data/stlTestSubset.mat');
 if SKIP<4	
 	[imgwid, ~, nch, m] = size(testImages);

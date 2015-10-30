@@ -135,7 +135,7 @@ end
 
 
 %%
-% * ÊµÏÖÍøÂç
+% * ÏÔÊ¾ÍøÂç
 function showColorInfo(A)
 	A = A - mean(A(:));
 	[n m] = size(A);	
