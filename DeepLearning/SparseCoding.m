@@ -52,12 +52,12 @@ SKIP = 1;
 patnum = 20000;
 patnum_perbat = 2000;
 poolDim = 4;
-patwid = 8;
+patwid = 16;
 patsize = patwid^2;
 gamma = 1e-2;
 lambda = 5e-5;
 epsilon = 1e-5;
-featnum = 121;
+featnum = 256;
 maxiter = 20;	
 
 images = load('./data/IMAGES.mat');
@@ -191,14 +191,14 @@ end
 
 
 % 显示分组矩阵
-clf;
-for k = 1:featnum
-	c = mod((k-1), donutDim) + 1;
-	r = floor((k-1) / donutDim) + 1;
-	subplot(donutDim, donutDim, k);
-	sV = reshape(V(k,:), donutDim, donutDim);
-	imshow(sV);
-end
+% clf;
+% for k = 1:featnum
+% 	c = mod((k-1), donutDim) + 1;
+% 	r = floor((k-1) / donutDim) + 1;
+% 	subplot(donutDim, donutDim, k);
+% 	sV = reshape(V(k,:), donutDim, donutDim);
+% 	imshow(sV);
+% end
 
 
 if isequal(questdlg('Initialize grouping matrix for topographic or non-topographic sparse coding?', 'Topographic/non-topographic?', 'Non-topographic', 'Topographic', 'Non-topographic'), 'Non-topographic')
@@ -235,8 +235,9 @@ for it = 1:200
 	options.Method = 'cg';
 	options.display = 'off';
 	options.verbose = 0;
-	[s, cost] = minFunc( @(x) SparseCodingCostGrad(V, subpatches, A, x, gamma, lambda, epsilon, 2), s(:), options);
+% 	[s, cost] = minFunc( @(x) SparseCodingCostGrad(V, subpatches, A, x, gamma, lambda, epsilon, 2), s(:), options);
 % 	[s, cost] = mylbfgs( @(p1, p2) SparseCodingCostGrad(V, subpatches, A, p1, gamma, lambda, epsilon, p2), s(:), maxiter, 20, 0.5, 100);	
+ 	[s, cost] = mycg( @(p1, p2) SparseCodingCostGrad(V, subpatches, A, p1, gamma, lambda, epsilon, p2), s(:), maxiter, 20, 0.5);	
 	s = reshape(s, featnum, []);
 		
 	% 固定s，求解A。不需要迭代，A可以是完型解		
@@ -295,10 +296,12 @@ cost = J0 + lambda*Jsp;
 
 if calcgrad == 1
 	grad = 2*(A*s-X)*s'/m + 2*gamma*A;
+	grad = grad(:);
 elseif calcgrad == 2
 	grad = 2*A'*(A*s-X) /m + lambda*(V'*(1./norm1).*s);
+	grad = grad(:);
 end
-grad = grad(:);
+
 
 end
 
@@ -387,3 +390,72 @@ title('残差-迭代');
 end
 
 
+
+%%
+% * 共轭梯度+Wolfe准则，最优化算法
+%
+function [Wb c] = mycg(func, Wb, maxiter, maxmk, basemk, maxm)
+% 1. 初值
+sigma = 0.4;
+rho = 0.1; 
+eps = 1e-8;
+
+[c0 g0] = func(Wb, 2);
+d = -g0;
+gtd0 = g0'*d;
+err = [c0];
+
+for k = 1:maxiter
+	% 线搜索, Wolfe
+	alf = 1; a = 0; b = Inf;
+	for mk = 0:maxmk
+		[c g] = func(Wb+alf*d, 2);		
+		if c > c0 + rho*alf*gtd0
+			b = alf;
+			alf = (alf + a) / 2;
+			continue;
+		end
+		if g'*d < sigma*gtd0
+			a = alf;
+			alf = min([2*alf, (b+a)/2]);
+			continue;
+		end
+		break;
+	end
+	if mk >= maxmk
+		disp('line search failed');
+		alf = 1;
+	end
+	Wb = Wb + alf*d;
+	
+	
+	% 2. 判断g_k
+	if g'*g < eps
+		disp('g_k small enough');
+		break;
+	end
+	
+	
+	% 搜索方向
+	beta = (g'*(g-g0))/((g-g0)'*d);
+% 	beta = (g'*g) / (g_old'*g_old);
+	d = -g + beta*d;
+	gtd = g'*d;
+	if gtd >= 0.0
+		d = -g;
+	end	
+	
+	
+	% 更新
+	gtd0 = gtd;
+	c0 = c;
+	g0 = g;	
+	
+% 	disp(sprintf('it:%d\t\tJ:%f\t\tstep:%f', k, cost, alf));
+	err(end+1) = c;
+end
+clf;
+plot(err);
+title('残差-迭代');
+% disp('done');
+end
