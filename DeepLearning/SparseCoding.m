@@ -47,6 +47,7 @@
 %% 程序代码
 %
 function SparseCoding()
+
 addpath('./starter/minFunc');
 SKIP = 1;
 patnum = 20000;
@@ -235,9 +236,9 @@ for it = 1:200
 	options.Method = 'cg';
 	options.display = 'off';
 	options.verbose = 0;
-% 	[s, cost] = minFunc( @(x) SparseCodingCostGrad(V, subpatches, A, x, gamma, lambda, epsilon, 2), s(:), options);
+	[s, cost] = minFunc( @(x) SparseCodingCostGrad(V, subpatches, A, x, gamma, lambda, epsilon, 2), s(:), options);
 % 	[s, cost] = mylbfgs( @(p1, p2) SparseCodingCostGrad(V, subpatches, A, p1, gamma, lambda, epsilon, p2), s(:), maxiter, 20, 0.5, 100);	
- 	[s, cost] = mycg( @(p1, p2) SparseCodingCostGrad(V, subpatches, A, p1, gamma, lambda, epsilon, p2), s(:), maxiter, 20, 0.5);	
+%  	[s, cost] = mycg( @(p1, p2) SparseCodingCostGrad(V, subpatches, A, p1, gamma, lambda, epsilon, p2), s(:), maxiter, 20, 0.5);	
 	s = reshape(s, featnum, []);
 		
 	% 固定s，求解A。不需要迭代，A可以是完型解		

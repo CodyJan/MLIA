@@ -29,9 +29,9 @@
 %
 % 反向传播的思路主要是利用后一层的残差，计算出前一层的偏导，依次从最后一层开始，直到第二层。与上述代价函数计算的过程正好相反，所以称之为反向传播算法。先看看每层残差的公式：
 %
-% $$\delta^{(n_l)} = -(y-a^{(n_l)})f'(z^{(n_l)})$$
+% $$\delta^{(n_l)} = -(y-a^{(n_l)}) \bullet f'(z^{(n_l)})$$
 %
-% $$\delta^{(l)} = \left((W^{(l)})^T \delta^{(l+1)} + \beta\left( -\frac{\rho}{\hat{\rho}} + \frac{1-\rho}{1-\hat{\rho}} \right)\right) f'(z^{(l)}) \qquad l=2,3,\cdots,n_l-1$$
+% $$\delta^{(l)} = \left((W^{(l)})^T \delta^{(l+1)} + \beta\left( -\frac{\rho}{\hat{\rho}} + \frac{1-\rho}{1-\hat{\rho}} \right)\right) \bullet f'(z^{(l)}) \qquad l=2,3,\cdots,n_l-1$$
 %
 % 对 $W,b$ 的偏导：
 %
